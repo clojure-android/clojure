@@ -60,7 +60,6 @@
       <arg value="clojure.edn"/>
       <arg value="clojure.xml"/>
       <arg value="clojure.zip"/>
-      <arg value="clojure.inspector"/>
       <arg value="clojure.walk"/>
       <arg value="clojure.stacktrace"/>
       <arg value="clojure.template"/>
@@ -70,10 +69,7 @@
       <arg value="clojure.pprint"/>
       <arg value="clojure.java.io"/>
       <arg value="clojure.repl"/>
-      <arg value="clojure.java.browse"/>
-      <arg value="clojure.java.javadoc"/>
       <arg value="clojure.java.shell"/>
-      <arg value="clojure.java.browse-ui"/>
       <arg value="clojure.string"/>
       <arg value="clojure.data"/>
       <arg value="clojure.reflect"/>
