@@ -623,6 +623,8 @@ static int countFrom(Object o){
 		return ((Collection) o).size();
 	else if(o instanceof Map)
 		return ((Map) o).size();
+	else if (o instanceof Map.Entry)
+		return 2;
 	else if(o.getClass().isArray())
 		return Array.getLength(o);
 
@@ -2151,39 +2153,44 @@ static public URL getResource(ClassLoader loader, String name){
     }
 }
 
-static public Class classForName(String name) {
+static public Class classForName(String name, boolean load, ClassLoader loader) {
 
 	try
 		{
-		return Class.forName(name, true, baseLoader());
+		Class c = null;
+		if (!(loader instanceof DynamicClassLoader))
+			c = DynamicClassLoader.findInMemoryClass(name);
+		if (c != null)
+			return c;
+		return Class.forName(name, load, loader);
 		}
 	catch(ClassNotFoundException e)
 		{
 		throw Util.sneakyThrow(e);
 		}
+}
+
+static public Class classForName(String name) {
+	return classForName(name, true, baseLoader());
 }
 
 static public Class classForNameNonLoading(String name) {
-	try
-		{
-		return Class.forName(name, false, baseLoader());
-		}
-	catch(ClassNotFoundException e)
-		{
-		throw Util.sneakyThrow(e);
-		}
+	return classForName(name, false, baseLoader());
 }
 
-static public Class loadClassForName(String name) throws ClassNotFoundException{
+static public Class loadClassForName(String name) {
 	try
 		{
-		Class.forName(name, false, baseLoader());
+		classForNameNonLoading(name);
 		}
-	catch(ClassNotFoundException e)
+	catch(Exception e)
 		{
-		return null;
+		if (e instanceof ClassNotFoundException)
+			return null;
+		else
+			throw Util.sneakyThrow(e);
 		}
-	return Class.forName(name, true, baseLoader());
+	return classForName(name);
 }
 
 static public float aget(float[] xs, int i){

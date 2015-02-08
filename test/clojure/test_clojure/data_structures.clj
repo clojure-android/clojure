@@ -1084,7 +1084,8 @@
                    (lazy-seq (cons :a
                      (lazy-seq (cons "7th" nil))))))
                  (into clojure.lang.PersistentQueue/EMPTY
-                       [-3 :a "7th"]) ]]
+                       [-3 :a "7th"])
+                 (sequence (map identity) [-3 :a "7th"]) ]]
     (doseq [c1 colls1, c2 colls1]
       (is-same-collection c1 c2)))
   (is-same-collection [-3 1 7] (vector-of :long -3 1 7)))
@@ -1157,3 +1158,8 @@
         s (into #{} unique-elem)]
     (is (= (hash s)
            (hash-unordered unique-elem)))))
+
+(deftest ireduce-reduced
+  (let [f (fn [_ a] (if (= a 5) (reduced "foo")))]
+    (is (= "foo" (.reduce ^clojure.lang.IReduce (list 1 2 3 4 5) f)))
+    (is (= "foo" (.reduce ^clojure.lang.IReduce (seq (long-array [1 2 3 4 5])) f)))))

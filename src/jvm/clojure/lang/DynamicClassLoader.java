@@ -49,10 +49,9 @@ public final Class defineClass(String name, byte[] bytes, Object srcForm){
 }
 
 protected abstract Class<?> defineMissingClass(final String name,
-        final byte[] bytes, final Object srcForm);
+    final byte[] bytes, final Object srcForm);
 
-@Override
-protected Class<?> findClass(String name) throws ClassNotFoundException{
+static Class<?> findInMemoryClass(String name) {
     Reference<Class> cr = classCache.get(name);
 	if(cr != null)
 		{
@@ -62,7 +61,27 @@ protected Class<?> findClass(String name) throws ClassNotFoundException{
 		else
 	        classCache.remove(name, cr);
 		}
-	return super.findClass(name);
+	return null;
+}
+
+protected Class<?>findClass(String name) throws ClassNotFoundException {
+	Class c = findInMemoryClass(name);
+	if (c != null)
+		return c;
+	else
+		return super.findClass(name);
+}
+
+protected synchronized Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+	Class c = findLoadedClass(name);
+	if (c == null) {
+		c = findInMemoryClass(name);
+		if (c == null)
+			c = getParent().loadClass(name);
+    }
+	if (resolve)
+		resolveClass(c);
+	return c;
 }
 
 public final void registerConstants(int id, Object[] val) {
