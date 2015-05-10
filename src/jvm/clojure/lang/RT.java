@@ -196,6 +196,7 @@ final static public Var READEVAL = Var.intern(CLOJURE_NS, Symbol.intern("*read-e
 final static public Var DATA_READERS = Var.intern(CLOJURE_NS, Symbol.intern("*data-readers*"), RT.map()).setDynamic();
 final static public Var DEFAULT_DATA_READER_FN = Var.intern(CLOJURE_NS, Symbol.intern("*default-data-reader-fn*"), RT.map()).setDynamic();
 final static public Var DEFAULT_DATA_READERS = Var.intern(CLOJURE_NS, Symbol.intern("default-data-readers"), RT.map());
+final static public Var SUPPRESS_READ = Var.intern(CLOJURE_NS, Symbol.intern("*suppress-read*"), null).setDynamic();
 final static public Var ASSERT = Var.intern(CLOJURE_NS, Symbol.intern("*assert*"), T).setDynamic();
 final static public Var MATH_CONTEXT = Var.intern(CLOJURE_NS, Symbol.intern("*math-context*"), null).setDynamic();
 static Keyword DALVIK_VM = Keyword.intern(null, "dalvik-vm");
@@ -439,13 +440,18 @@ static public void load(String scriptbase) throws IOException, ClassNotFoundExce
 static public void load(String scriptbase, boolean failIfNotFound) throws IOException, ClassNotFoundException{
 	String classfile = scriptbase + LOADER_SUFFIX + ".class";
 	String cljfile = scriptbase + ".clj";
+	String scriptfile = cljfile;
 	URL classURL = getResource(baseLoader(),classfile);
-	URL cljURL = getResource(baseLoader(), cljfile);
+	URL cljURL = getResource(baseLoader(), scriptfile);
+	if(cljURL == null) {
+		scriptfile = scriptbase + ".cljc";
+		cljURL = getResource(baseLoader(), scriptfile);
+	}
 	boolean loaded = false;
 
 	if((classURL != null &&
 	    (cljURL == null
-	     || lastModified(classURL, classfile) > lastModified(cljURL, cljfile)))
+	     || lastModified(classURL, classfile) > lastModified(cljURL, scriptfile)))
 	   || classURL == null) {
 		try {
 			Var.pushThreadBindings(
@@ -460,9 +466,9 @@ static public void load(String scriptbase, boolean failIfNotFound) throws IOExce
 	}
 	if(!loaded && cljURL != null) {
 		if(booleanCast(Compiler.COMPILE_FILES.deref()))
-			compile(cljfile);
+			compile(scriptfile);
 		else
-			loadResourceScript(RT.class, cljfile);
+			loadResourceScript(RT.class, scriptfile);
 	}
 	else if(!loaded && failIfNotFound)
 		throw new FileNotFoundException(String.format("Could not locate %s or %s on classpath.%s", classfile, cljfile,
@@ -505,6 +511,22 @@ public static void loadLibrary(String libname){
 
 ////////////// Collections support /////////////////////////////////
 
+private static final int CHUNK_SIZE = 32;
+public static ISeq chunkIteratorSeq(final Iterator iter){
+    if(iter.hasNext()) {
+        return new LazySeq(new AFn() {
+            public Object invoke() {
+                Object[] arr = new Object[CHUNK_SIZE];
+                int n = 0;
+                while(iter.hasNext() && n < CHUNK_SIZE)
+                    arr[n++] = iter.next();
+                return new ChunkedCons(new ArrayChunk(arr, 0, n), chunkIteratorSeq(iter));
+            }
+        });
+    }
+    return null;
+}
+
 static public ISeq seq(Object coll){
 	if(coll instanceof ASeq)
 		return (ASeq) coll;
@@ -520,7 +542,7 @@ static ISeq seqFrom(Object coll){
 	else if(coll == null)
 		return null;
 	else if(coll instanceof Iterable)
-		return IteratorSeq.create(((Iterable) coll).iterator());
+		return chunkIteratorSeq(((Iterable) coll).iterator());
 	else if(coll.getClass().isArray())
 		return ArraySeq.createFromObject(coll);
 	else if(coll instanceof CharSequence)
@@ -584,11 +606,17 @@ static public Object seqOrElse(Object o) {
 }
 
 static public ISeq keys(Object coll){
-	return APersistentMap.KeySeq.create(seq(coll));
+	if(coll instanceof IPersistentMap)
+		return APersistentMap.KeySeq.createFromMap((IPersistentMap)coll);
+	else
+		return APersistentMap.KeySeq.create(seq(coll));
 }
 
 static public ISeq vals(Object coll){
-	return APersistentMap.ValSeq.create(seq(coll));
+	if(coll instanceof IPersistentMap)
+		return APersistentMap.ValSeq.createFromMap((IPersistentMap)coll);
+	else
+		return APersistentMap.ValSeq.create(seq(coll));
 }
 
 static public IPersistentMap meta(Object x){
@@ -1638,7 +1666,12 @@ static public Object[] toArray(Object coll) {
 		return (Object[]) coll;
 	else if(coll instanceof Collection)
 		return ((Collection) coll).toArray();
-	else if(coll instanceof Map)
+	else if(coll instanceof Iterable) {
+		ArrayList ret = new ArrayList();
+		for(Object o : (Iterable)coll)
+			ret.add(o);
+		return ret.toArray();
+	} else if(coll instanceof Map)
 		return ((Map) coll).entrySet().toArray();
 	else if(coll instanceof String) {
 		char[] chars = ((String) coll).toCharArray();
@@ -1792,8 +1825,7 @@ static public String resolveClassNameInContext(String className){
 }
 
 static public boolean suppressRead(){
-	//todo - look up in suppress-read var
-	return false;
+	return booleanCast(SUPPRESS_READ.deref());
 }
 
 static public String printString(Object x){
@@ -1808,8 +1840,12 @@ static public String printString(Object x){
 }
 
 static public Object readString(String s){
+	return readString(s, null);
+}
+
+static public Object readString(String s, Object opts) {
 	PushbackReader r = new PushbackReader(new StringReader(s));
-	return LispReader.read(r, true, null, false);
+	return LispReader.read(r, opts);
 }
 
 static public void print(Object x, Writer w) throws IOException{
