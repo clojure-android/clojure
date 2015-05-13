@@ -7276,7 +7276,7 @@ static public void writeClassFile(String internalName, byte[] bytecode) throws I
 		{
 		cfs.write(bytecode);
 		cfs.flush();
-		cfs.getFD().sync();
+		// cfs.getFD().sync();
 		}
 	finally
 		{
