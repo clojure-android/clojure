@@ -10,6 +10,7 @@
  */
 package clojure.lang;
 
+import android.content.Context;
 import android.util.Log;
 import com.android.dx.cf.direct.DirectClassFile;
 import com.android.dx.cf.direct.StdAttributeFactory;
@@ -19,6 +20,7 @@ import com.android.dx.dex.DexOptions;
 import dalvik.system.DexFile;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.IOException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -37,6 +39,9 @@ public class DalvikDynamicClassLoader extends DynamicClassLoader {
             RT.var("clojure.core", "*compile-path*");
     /** Configure whether or not to use extended op codes. */
     private static final DexOptions DEX_OPTIONS = new DexOptions();
+    /** Directory where temporary class files will go. */
+    private static File cacheDirectory;
+    private static Context applicationContext;
 
     static {
         // disable name checks
@@ -81,7 +86,10 @@ public class DalvikDynamicClassLoader extends DynamicClassLoader {
         outDexFile.add(CfTranslator.translate(cf, bytes, OPTIONS, DEX_OPTIONS, outDexFile));
 
         // get compile directory
-        final File compileDir = new File((String) COMPILE_PATH.deref());
+        if (cacheDirectory == null) {
+            initializeDynamicCompilation();
+        }
+        final File compileDir = cacheDirectory;
         try {
             // write generated DEX into a file
             File tmpDexFile = File.createTempFile("repl-", ".dex", compileDir);
@@ -110,5 +118,39 @@ public class DalvikDynamicClassLoader extends DynamicClassLoader {
 
     private static String asFilePath(String name) {
         return name.replace('.', '/').concat(".class");
+    }
+
+    public void clearCache() {
+        if (cacheDirectory != null) {
+            synchronized(cacheDirectory) {
+                for (File f : cacheDirectory.listFiles())
+                    f.delete();
+            }
+        }
+    }
+
+    public InputStream getDataReadersStream() {
+        if (applicationContext != null) {
+            try {
+                return applicationContext.getAssets().open("data_readers.clj");
+            } catch (IOException e) {}
+        }
+        return null;
+    }
+
+    public void initializeDynamicCompilation() {
+        cacheDirectory = new File(applicationContext.getCacheDir(), "clojure_repl");
+        Log.d(TAG, "CACHED DIRECTORY: " + cacheDirectory);
+        String path = cacheDirectory.getAbsolutePath();
+        cacheDirectory.mkdir();
+        clearCache();
+        System.setProperty("clojure.compile.path", path);
+        COMPILE_PATH.swapRoot(path);
+        // Add URL resource for data readers initialization
+
+    }
+
+    public static void setContext(Context context) {
+        applicationContext = context;
     }
 }

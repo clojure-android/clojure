@@ -7447,40 +7447,48 @@
   (intern (create-ns (symbol (namespace sym)))
           (symbol (name sym))))
 
-(defn- load-data-reader-file [mappings ^java.net.URL url]
-  (with-open [rdr (clojure.lang.LineNumberingPushbackReader.
-                   (java.io.InputStreamReader.
-                    (.openStream url) "UTF-8"))]
-    (binding [*file* (.getFile url)]
-      (let [read-opts (if (.endsWith (.getPath url) "cljc")
-                        {:eof nil :read-cond :allow}
-                        {:eof nil})
-            new-mappings (read read-opts rdr)]
-        (when (not (map? new-mappings))
-          (throw (ex-info (str "Not a valid data-reader map")
-                          {:url url})))
-        (reduce
-         (fn [m [k v]]
-           (when (not (symbol? k))
-             (throw (ex-info (str "Invalid form in data-reader file")
-                             {:url url
-                              :form k})))
-           (let [v-var (data-reader-var v)]
-             (when (and (contains? mappings k)
-                        (not= (mappings k) v-var))
-               (throw (ex-info "Conflicting data-reader mapping"
+(defn- load-data-reader-file [mappings url]
+  (let [stream (if (instance? java.net.URL url)
+                 (.openStream ^java.net.URL url)
+                 url)]
+    (with-open [rdr (clojure.lang.LineNumberingPushbackReader.
+                     (java.io.InputStreamReader.
+                      stream "UTF-8"))]
+      (binding [*file* (.getFile url)]
+        (let [read-opts (if (.endsWith (.getPath url) "cljc")
+                          {:eof nil :read-cond :allow}
+                          {:eof nil})
+              new-mappings (read read-opts rdr)]
+          (when (not (map? new-mappings))
+            (throw (ex-info (str "Not a valid data-reader map")
+                            {:url url})))
+          (reduce
+           (fn [m [k v]]
+             (when (not (symbol? k))
+               (throw (ex-info (str "Invalid form in data-reader file")
                                {:url url
-                                :conflict k
-                                :mappings m})))
-             (assoc m k v-var)))
-         mappings
-         new-mappings)))))
+                                :form k})))
+             (let [v-var (data-reader-var v)]
+               (when (and (contains? mappings k)
+                          (not= (mappings k) v-var))
+                 (throw (ex-info "Conflicting data-reader mapping"
+                                 {:url url
+                                  :conflict k
+                                  :mappings m})))
+               (assoc m k v-var)))
+           mappings
+           new-mappings))))))
 
+(import 'clojure.lang.DalvikDynamicClassLoader)
 (defn- load-data-readers []
   (alter-var-root #'*data-readers*
                   (fn [mappings]
-                    (reduce load-data-reader-file
-                            mappings (data-reader-urls)))))
+                    (let [cl (.getContextClassLoader (Thread/currentThread))]
+                      (if (instance? DalvikDynamicClassLoader cl)
+                        (when-let [stream (.getDataReadersStream ^DalvikDynamicClassLoader cl)]
+                          (load-data-reader-file {} stream))
+                        (reduce load-data-reader-file
+                                mappings (data-reader-urls)))))))
 
 (try
  (load-data-readers)
