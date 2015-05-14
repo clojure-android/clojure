@@ -88,6 +88,10 @@ public class DalvikDynamicClassLoader extends DynamicClassLoader {
         // get compile directory
         if (cacheDirectory == null) {
             initializeDynamicCompilation();
+            if (cacheDirectory == null) {
+                String compilePath = (String)COMPILE_PATH.deref();
+                cacheDirectory = new File(compilePath);
+            }
         }
         final File compileDir = cacheDirectory;
         try {
@@ -139,15 +143,15 @@ public class DalvikDynamicClassLoader extends DynamicClassLoader {
     }
 
     public void initializeDynamicCompilation() {
-        cacheDirectory = new File(applicationContext.getCacheDir(), "clojure_repl");
-        Log.d(TAG, "CACHED DIRECTORY: " + cacheDirectory);
-        String path = cacheDirectory.getAbsolutePath();
-        cacheDirectory.mkdir();
-        clearCache();
-        System.setProperty("clojure.compile.path", path);
-        COMPILE_PATH.swapRoot(path);
-        // Add URL resource for data readers initialization
-
+        if (applicationContext != null) {
+            cacheDirectory = new File(applicationContext.getCacheDir(), "clojure_repl");
+            Log.d(TAG, "CACHED DIRECTORY: " + cacheDirectory);
+            String path = cacheDirectory.getAbsolutePath();
+            cacheDirectory.mkdir();
+            clearCache();
+            System.setProperty("clojure.compile.path", path);
+            COMPILE_PATH.swapRoot(path);
+        }
     }
 
     public static void setContext(Context context) {
