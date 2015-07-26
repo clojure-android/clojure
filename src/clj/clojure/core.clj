@@ -6756,7 +6756,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; clojure version number ;;;;;;;;;;;;;;;;;;;;;;
 
 (def ^:dynamic *clojure-version*
-  {:major 1, :minor 7, :incremental 0, :qualifier "beta3-r2"})
+  {:major 1, :minor 7, :incremental 0})
 
 (add-doc-and-meta *clojure-version*
                   "The version info for Clojure core, as a map containing :major :minor 
