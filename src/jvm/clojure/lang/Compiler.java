@@ -1536,7 +1536,12 @@ static class InstanceMethodExpr extends MethodExpr{
 	public void emitUnboxed(C context, ObjExpr objx, GeneratorAdapter gen){
 		if(method != null)
 			{
-			Type type = Type.getType(method.getDeclaringClass());
+			Type type;
+            if (target.hasJavaClass() && target.getJavaClass().toString().startsWith("class android.")) {
+                type = Type.getType(target.getJavaClass());
+            } else {
+                type = Type.getType(method.getDeclaringClass());
+            }
 			target.emit(C.EXPRESSION, objx, gen);
 			//if(!method.getDeclaringClass().isInterface())
 			gen.checkCast(type);
@@ -1560,7 +1565,12 @@ static class InstanceMethodExpr extends MethodExpr{
 	public void emit(C context, ObjExpr objx, GeneratorAdapter gen){
 		if(method != null)
 			{
-			Type type = Type.getType(method.getDeclaringClass());
+			Type type;
+            if (target.hasJavaClass() && target.getJavaClass().toString().startsWith("class android.")) {
+                type = Type.getType(target.getJavaClass());
+            } else {
+                type = Type.getType(method.getDeclaringClass());
+            }
 			target.emit(C.EXPRESSION, objx, gen);
 			//if(!method.getDeclaringClass().isInterface())
 			gen.checkCast(type);
