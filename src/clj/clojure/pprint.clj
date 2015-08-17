@@ -38,21 +38,6 @@ complete documentation on the the clojure web site on github.",
     (:refer-clojure :exclude (deftype))
     (:use [clojure.walk :only [walk]]))
 
-;; (defn pprint
-;;   "Temporary stub for Android Lollipop 5.0."
-;;   ([object]
-;;    (println object))
-;;   ([object writer]
-;;    (println object)))
-
-;; (def code-dispatch nil)
-
-;; (defn write [what & _]
-;;   (pprint what))
-
-;; (defn use-method [& _]
-;;   nil)
-
 (load "pprint/utilities")
 (load "pprint/column_writer")
 (load "pprint/pretty_writer")
