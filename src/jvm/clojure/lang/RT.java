@@ -240,24 +240,6 @@ final static Var FN_LOADER_VAR = Var.intern(CLOJURE_NS, Symbol.intern("*fn-loade
 static final Var PRINT_INITIALIZED = Var.intern(CLOJURE_NS, Symbol.intern("print-initialized"));
 static final Var PR_ON = Var.intern(CLOJURE_NS, Symbol.intern("pr-on"));
 //final static Var IMPORTS = Var.intern(CLOJURE_NS, Symbol.intern("*imports*"), DEFAULT_IMPORTS);
-
-private static final boolean ECLAIR_WORKAROUND;
-
-static {
-    boolean needsWorkaround=false;
-    try {
-        Class<?> versionClass = Class.forName("android.os.Build$VERSION");
-        Field sdkIntField = versionClass.getField("SDK_INT");
-        int version = sdkIntField.getInt(null);
-        if(version > 0 && version < 8) {
-            needsWorkaround=true;
-        }
-    } catch(Exception ignored) {
-        // ignored -- eclair not detected
-    }
-    ECLAIR_WORKAROUND=needsWorkaround;
-}
-
 final static IFn inNamespace = new AFn(){
 	public Object invoke(Object arg1) {
 		Symbol nsname = (Symbol) arg1;
@@ -2156,20 +2138,11 @@ static public ClassLoader makeClassLoader(){
 	});
 }
 
-
 static public ClassLoader baseLoader(){
 	if(Compiler.LOADER.isBound())
 		return (ClassLoader) Compiler.LOADER.deref();
-	else if(booleanCast(USE_CONTEXT_CLASSLOADER.deref())) {
-            final Thread currentThread = Thread.currentThread();
-            ClassLoader contextLoader = currentThread.getContextClassLoader();
-            if(ECLAIR_WORKAROUND
-               && contextLoader==ClassLoader.getSystemClassLoader()) {
-                contextLoader = Compiler.class.getClassLoader();
-                currentThread.setContextClassLoader(contextLoader);
-            }
-            return contextLoader;
-        }
+	else if(booleanCast(USE_CONTEXT_CLASSLOADER.deref()))
+		return Thread.currentThread().getContextClassLoader();
 	return Compiler.class.getClassLoader();
 }
 
