@@ -415,15 +415,17 @@
                all-mm)]
       (doseq [^java.lang.reflect.Method meth (vals mm)]
              (emit-forwarding-method (.getName meth) (.getParameterTypes meth) (.getReturnType meth) false
-                                     (fn [^GeneratorAdapter gen ^Method m]
-                                       (. gen (loadThis))
-                                        ;push args
-                                       (. gen (loadArgs))
-                                        ;call super
-                                       (. gen (visitMethodInsn (. Opcodes INVOKESPECIAL) 
-                                                               (. super-type (getInternalName))
-                                                               (. m (getName))
-                                                               (. m (getDescriptor)))))))
+                                     (if (Modifier/isAbstract (. meth (getModifiers)))
+                                       emit-unsupported
+                                       (fn [^GeneratorAdapter gen ^Method m]
+                                         (. gen (loadThis))
+                                          ;push args
+                                         (. gen (loadArgs))
+                                          ;call super if not abstract
+                                         (. gen (visitMethodInsn (. Opcodes INVOKESPECIAL)
+                                                                 (. super-type (getInternalName))
+                                                                 (. m (getName))
+                                                                 (. m (getDescriptor))))))))
                                         ;add methods matching interfaces', if no fn -> throw
       (reduce1 (fn [mm ^java.lang.reflect.Method meth]
                 (if (contains? mm (method-sig meth))
