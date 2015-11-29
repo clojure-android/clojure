@@ -304,6 +304,8 @@ static public void addURL(Object url) throws MalformedURLException{
 		throw new IllegalAccessError("Context classloader is not a DynamicClassLoader");
 }
 
+static IPersistentSet loadedPaths = set();
+
 static{
 	Keyword arglistskw = Keyword.intern(null, "arglists");
 	Symbol namesym = Symbol.intern("name");
@@ -440,7 +442,10 @@ static public void load(String scriptbase, boolean failIfNotFound) throws IOExce
 					RT.mapUniqueKeys(CURRENT_NS, CURRENT_NS.deref(),
 					       WARN_ON_REFLECTION, WARN_ON_REFLECTION.deref()
 							,RT.UNCHECKED_MATH, RT.UNCHECKED_MATH.deref()));
-			loaded = (loadClassForName(scriptbase.replace('/', '.') + LOADER_SUFFIX) != null);
+			String className = scriptbase.replace('/', '.') + LOADER_SUFFIX;
+			loaded = (classForNameNonLoadingSafe(className) != null);
+			if (loaded && !loadedPaths.contains(scriptbase))
+				loadClassForName(className);
 		}
 		finally {
 			Var.popThreadBindings();
@@ -451,10 +456,13 @@ static public void load(String scriptbase, boolean failIfNotFound) throws IOExce
 			compile(scriptfile);
 		else
 			loadResourceScript(RT.class, scriptfile);
+        loaded = true;
 	}
 	else if(!loaded && failIfNotFound)
 		throw new FileNotFoundException(String.format("Could not locate %s or %s on classpath.%s", classfile, cljfile,
 			scriptbase.contains("_") ? " Please check that namespaces with dashes use underscores in the Clojure file name." : ""));
+	if(loaded)
+        loadedPaths = (IPersistentSet) loadedPaths.cons(scriptbase);
 }
 
 static void doInit() throws ClassNotFoundException, IOException{
@@ -2187,10 +2195,10 @@ static public Class classForNameNonLoading(String name) {
 	return classForName(name, false, baseLoader());
 }
 
-static public Class loadClassForName(String name) {
+static public Class classForNameNonLoadingSafe(String name) {
 	try
 		{
-		classForNameNonLoading(name);
+            return classForNameNonLoading(name);
 		}
 	catch(Exception e)
 		{
@@ -2199,7 +2207,12 @@ static public Class loadClassForName(String name) {
 		else
 			throw Util.sneakyThrow(e);
 		}
-	return classForName(name);
+}
+
+static public Class loadClassForName(String name) {
+	if (classForNameNonLoadingSafe(name) == null)
+		return null;
+ 	return classForName(name);
 }
 
 static public float aget(float[] xs, int i){
