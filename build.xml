@@ -6,6 +6,10 @@
   </description>
 
   <property name="src" location="src"/>
+  <property name="platform" location="android/platform"/>
+  <property name="libcore-src" location="${platform}/libcore/dex/src/main/java"/>
+  <property name="dalvik-dexgen-src" location="${platform}/dalvik/dexgen/src"/>
+  <property name="dalvik-dx-src" location="${platform}/dalvik/dx/src"/>
   <property name="test" location="test"/>
   <property name="jsrc" location="${src}/jvm"/>
   <property name="jtestsrc" location="${test}/java"/>
@@ -25,8 +29,8 @@
   <property name="clojure.version.label" value="${pom.project.version}"/>
   <property name="version.properties" value="${build}/clojure/version.properties"/>
 
-  <property name="clojure_jar" location="clojure-${clojure.version.label}.jar"/>
-  <property name="clojure_noversion_jar" location="clojure.jar"/>
+  <property name="clojure_jar" location="${target}/clojure-${clojure.version.label}.jar"/>
+  <property name="clojure_noversion_jar" location="${target}/clojure.jar"/>
 
   <target name="init" depends="clean">
     <tstamp/>
@@ -34,12 +38,18 @@
     <mkdir dir="${build}/clojure"/>
     <echo file="${version.properties}">version=${clojure.version.label}</echo>
   </target>
-
+  
   <target name="compile-java" depends="init"
           description="Compile Java sources.">
     <javac srcdir="${jsrc}" destdir="${build}" includeJavaRuntime="yes"
            includeAntRuntime="false"
-           debug="true" source="1.6" target="1.6"/>
+	classpath="${maven.compile.classpath}:${build}"
+           debug="true" source="1.6" target="1.6">
+      <src path="${libcore-src}"/>
+      <src path="${dalvik-dexgen-src}"/> 
+      <src path="${dalvik-dx-src}"/> 
+      <src path="${jsrc}"/>
+    </javac>
   </target>
 
   <target name="compile-clojure"
